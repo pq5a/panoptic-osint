@@ -1,0 +1,4 @@
+requests>=2.31.0
+dnspython>=2.4.2
+phonenumbers>=8.13.0
+exifread>=3.0.0
