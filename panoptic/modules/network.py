@@ -1,18 +1,17 @@
-"""Network & domain reconnaissance modules (DNS, WHOIS, IP, certs, etc.)."""
+# dns / whois / ip stuff. mostly just wrapping public apis + stdlib socket calls.
 import socket
 import ssl
-import datetime
 import requests
 
 TIMEOUT = 8
 
 
-def whois_lookup(domain: str) -> dict:
-    """RDAP-based WHOIS lookup (no local whois binary required)."""
+def whois_lookup(domain):
+    # using rdap here instead of shelling out to whois, one less dependency
     try:
         r = requests.get(f"https://rdap.org/domain/{domain}", timeout=TIMEOUT)
         if r.status_code != 200:
-            return {"error": f"RDAP lookup failed ({r.status_code})"}
+            return {"error": f"rdap lookup failed ({r.status_code})"}
         data = r.json()
         events = {e.get("eventAction"): e.get("eventDate") for e in data.get("events", [])}
         return {
@@ -27,21 +26,20 @@ def whois_lookup(domain: str) -> dict:
         return {"error": str(e)}
 
 
-def dns_records(domain: str) -> dict:
-    """Resolve common DNS record types via dnspython."""
+def dns_records(domain):
     import dns.resolver
 
-    results = {}
+    out = {}
     for rtype in ["A", "AAAA", "MX", "NS", "TXT", "CNAME", "SOA"]:
         try:
             answers = dns.resolver.resolve(domain, rtype, lifetime=TIMEOUT)
-            results[rtype] = [r.to_text() for r in answers]
+            out[rtype] = [r.to_text() for r in answers]
         except Exception:
-            results[rtype] = []
-    return results
+            out[rtype] = []
+    return out
 
 
-def reverse_dns(ip: str) -> dict:
+def reverse_dns(ip):
     try:
         host, _, _ = socket.gethostbyaddr(ip)
         return {"ip": ip, "hostname": host}
@@ -49,8 +47,9 @@ def reverse_dns(ip: str) -> dict:
         return {"ip": ip, "error": str(e)}
 
 
-def subdomain_enum(domain: str) -> dict:
-    """Passive subdomain enumeration via certificate-transparency logs (crt.sh)."""
+def subdomain_enum(domain):
+    # crt.sh indexes cert transparency logs, so this catches subdomains
+    # that got a tls cert at some point even if they're not linked anywhere
     try:
         r = requests.get(f"https://crt.sh/?q=%25.{domain}&output=json", timeout=15)
         if r.status_code != 200:
@@ -66,7 +65,7 @@ def subdomain_enum(domain: str) -> dict:
         return {"error": str(e)}
 
 
-def geoip_lookup(ip_or_host: str) -> dict:
+def geoip_lookup(ip_or_host):
     try:
         r = requests.get(f"http://ip-api.com/json/{ip_or_host}", timeout=TIMEOUT)
         return r.json()
@@ -74,8 +73,7 @@ def geoip_lookup(ip_or_host: str) -> dict:
         return {"error": str(e)}
 
 
-def asn_lookup(ip: str) -> dict:
-    """ASN / network ownership info."""
+def asn_lookup(ip):
     try:
         r = requests.get(f"https://ipapi.co/{ip}/json/", timeout=TIMEOUT)
         data = r.json()
@@ -90,8 +88,9 @@ def asn_lookup(ip: str) -> dict:
         return {"error": str(e)}
 
 
-def port_scan(host: str, ports=None) -> dict:
-    """Lightweight TCP connect scan of common ports. Intended for hosts you own or are authorized to test."""
+def port_scan(host, ports=None):
+    # plain tcp connect scan, no syn scanning or anything fancy that'd need root.
+    # only run this against stuff you actually own or have permission to poke at.
     if ports is None:
         ports = [21, 22, 23, 25, 53, 80, 110, 143, 443, 465, 587, 993, 995, 3306, 3389, 8080, 8443]
     open_ports = []
@@ -110,7 +109,7 @@ def port_scan(host: str, ports=None) -> dict:
     return {"host": host, "ip": ip, "open_ports": open_ports}
 
 
-def http_headers(url: str) -> dict:
+def http_headers(url):
     if not url.startswith("http"):
         url = "https://" + url
     try:
@@ -120,7 +119,7 @@ def http_headers(url: str) -> dict:
         return {"error": str(e)}
 
 
-def ssl_certificate_info(host: str, port: int = 443) -> dict:
+def ssl_certificate_info(host, port=443):
     try:
         ctx = ssl.create_default_context()
         with socket.create_connection((host, port), timeout=TIMEOUT) as sock:
@@ -137,7 +136,7 @@ def ssl_certificate_info(host: str, port: int = 443) -> dict:
         return {"error": str(e)}
 
 
-def dnssec_check(domain: str) -> dict:
+def dnssec_check(domain):
     import dns.resolver
 
     try:
@@ -147,8 +146,7 @@ def dnssec_check(domain: str) -> dict:
         return {"domain": domain, "dnssec_enabled": False}
 
 
-def email_security_records(domain: str) -> dict:
-    """Check SPF / DMARC / DKIM presence for a domain."""
+def email_security_records(domain):
     import dns.resolver
 
     out = {"spf": None, "dmarc": None}
@@ -168,31 +166,30 @@ def email_security_records(domain: str) -> dict:
     return out
 
 
-def robots_and_sitemap(url: str) -> dict:
+def robots_and_sitemap(url):
     if not url.startswith("http"):
         url = "https://" + url
     result = {}
     for path in ["robots.txt", "sitemap.xml"]:
         try:
             r = requests.get(url.rstrip("/") + "/" + path, timeout=TIMEOUT)
-            result[path] = r.text[:2000] if r.status_code == 200 else f"HTTP {r.status_code}"
+            result[path] = r.text[:2000] if r.status_code == 200 else f"http {r.status_code}"
         except Exception as e:
             result[path] = str(e)
     return result
 
 
-def wayback_snapshots(url: str) -> dict:
+def wayback_snapshots(url):
     try:
-        r = requests.get(
-            "http://archive.org/wayback/available", params={"url": url}, timeout=TIMEOUT
-        )
+        r = requests.get("http://archive.org/wayback/available", params={"url": url}, timeout=TIMEOUT)
         return r.json()
     except Exception as e:
         return {"error": str(e)}
 
 
-def tech_fingerprint(url: str) -> dict:
-    """Very lightweight tech-stack fingerprint from headers + HTML hints."""
+def tech_fingerprint(url):
+    # this is not shodan/wappalyzer, just a handful of obvious string checks.
+    # good enough to point you in a direction, not meant to be exhaustive.
     if not url.startswith("http"):
         url = "https://" + url
     try:
@@ -203,8 +200,7 @@ def tech_fingerprint(url: str) -> dict:
             "WordPress": "wp-content" in html,
             "Shopify": "cdn.shopify.com" in html,
             "React": "react" in html or "__next" in html,
-            "Cloudflare": "cloudflare" in headers.get("Server", "").lower()
-            or "cf-ray" in headers,
+            "Cloudflare": "cloudflare" in headers.get("Server", "").lower() or "cf-ray" in headers,
             "Nginx": "nginx" in headers.get("Server", "").lower(),
             "Apache": "apache" in headers.get("Server", "").lower(),
             "PHP": "x-powered-by" in headers and "php" in headers.get("X-Powered-By", "").lower(),

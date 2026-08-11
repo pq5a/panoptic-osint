@@ -1,29 +1,17 @@
-"""ASCII banner for PANOPTIC."""
-
-CYAN = "\033[36m"
-MAGENTA = "\033[35m"
-GREY = "\033[90m"
-RESET = "\033[0m"
-
-BANNER = f"""
-{CYAN}
- ██▓███   ▄▄▄       ███▄    █  ▒█████   ██▓███  ▄▄▄█████▓ ██▓ ▄████▄
-▓██░  ██▒▒████▄     ██ ▀█   █ ▒██▒  ██▒▓██░  ██▒▓  ██▒ ▓▒▓██▒▒██▀ ▀█
-▓██░ ██▓▒▒██  ▀█▄  ▓██  ▀█ ██▒▒██░  ██▒▓██░ ██▓▒▒ ▓██░ ▒░▒██▒▒▓█    ▄
-▒██▄█▓▒ ▒░██▄▄▄▄██ ▓██▒  ▐▌██▒▒██   ██░▒██▄█▓▒ ▒░ ▓██▓ ░ ░██░▒▓▓▄ ▄██▒
-▒██▒ ░  ░ ▓█   ▓██▒▒██░   ▓██░░ ████▓▒░▒██▒ ░  ░  ▒██▒ ░ ░██░▒ ▓███▀ ░
-▒▓▒░ ░  ░ ▒▒   ▓▒█░░ ▒░   ▒ ▒ ░ ▒░▒░▒░ ▒▓▒░ ░  ░  ▒ ░░   ░▓  ░ ░▒ ▒  ░
-░▒ ░       ▒   ▒▒ ░░ ░░   ░ ▒░  ░ ▒ ▒░ ░▒ ░         ░     ▒ ░  ░  ▒
-░░         ░   ▒      ░   ░ ░ ░ ░ ░ ▒  ░░         ░       ▒ ░░
-               ░  ░         ░     ░ ░                     ░  ░ ░
-                                                               ░
-        {MAGENTA}O S I N T   R E C O N N A I S S A N C E   F R A M E W O R K{CYAN}
-{RESET}
-"""
-
-TAGLINE = f"{GREY}  27 modules · zero API keys required to start · one target, total visibility{RESET}\n"
-
+# just prints the name + module count when you run the tool.
+# no need for anything fancier than this.
 
 def print_banner():
-    print(BANNER)
-    print(TAGLINE)
+    print()
+    print("PANOPTIC")
+    print("-" * 8)
+
+
+def print_module_list(commands):
+    # commands = dict of name -> (func, argname, help_text)
+    print(f"{len(commands)} modules\n")
+    i = 1
+    for name, (_, argname, help_text) in commands.items():
+        print(f"[{i}] {name} <{argname}> - {help_text}")
+        i += 1
+    print()

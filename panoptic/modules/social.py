@@ -1,9 +1,12 @@
-"""Identity, username, and social-footprint OSINT modules — public pages only."""
+# username / email / phone stuff. all public pages, nothing that needs a login.
 import hashlib
 import requests
 
 TIMEOUT = 6
 
+# just checking if a profile url returns 200. not scraping anything private,
+# and some of these (reddit, x) are flaky about status codes so treat this
+# as "probably exists" not gospel.
 USERNAME_SITES = {
     "GitHub": "https://github.com/{u}",
     "GitLab": "https://gitlab.com/{u}",
@@ -23,10 +26,9 @@ USERNAME_SITES = {
 }
 
 
-def username_search(username: str) -> dict:
-    """Check a username's presence across common platforms via public profile URLs."""
+def username_search(username):
     found, not_found, errors = [], [], []
-    headers = {"User-Agent": "Mozilla/5.0 (PANOPTIC-OSINT)"}
+    headers = {"User-Agent": "Mozilla/5.0 (PANOPTIC)"}
     for site, template in USERNAME_SITES.items():
         url = template.format(u=username)
         try:
@@ -40,11 +42,11 @@ def username_search(username: str) -> dict:
     return {"username": username, "found": found, "not_found": not_found, "errors": errors}
 
 
-def github_user_info(username: str) -> dict:
+def github_user_info(username):
     try:
         r = requests.get(f"https://api.github.com/users/{username}", timeout=TIMEOUT)
         if r.status_code != 200:
-            return {"error": f"GitHub API returned {r.status_code}"}
+            return {"error": f"github api returned {r.status_code}"}
         d = r.json()
         return {
             "login": d.get("login"),
@@ -61,7 +63,7 @@ def github_user_info(username: str) -> dict:
         return {"error": str(e)}
 
 
-def gravatar_lookup(email: str) -> dict:
+def gravatar_lookup(email):
     email_hash = hashlib.md5(email.strip().lower().encode()).hexdigest()
     url = f"https://www.gravatar.com/avatar/{email_hash}?d=404"
     try:
@@ -75,8 +77,8 @@ def gravatar_lookup(email: str) -> dict:
         return {"error": str(e)}
 
 
-def email_format_check(email: str) -> dict:
-    """Basic syntax / MX-record sanity check for an email address (no data broker lookups)."""
+def email_format_check(email):
+    # just a sanity check, not a deliverability guarantee
     import re
     import dns.resolver
 
@@ -92,8 +94,8 @@ def email_format_check(email: str) -> dict:
     return result
 
 
-def phone_number_info(number: str) -> dict:
-    """Country, carrier region, and line-type info via libphonenumber (public metadata only)."""
+def phone_number_info(number):
+    # libphonenumber's data, not some external lookup service
     try:
         import phonenumbers
         from phonenumbers import geocoder, carrier, number_type
